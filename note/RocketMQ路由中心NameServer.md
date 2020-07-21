@@ -1,4 +1,5 @@
 ## RocketMQ路由中心NameServer
+
 ### NameServer架构设计, 启动流程
 #### 1. NameServer架构设计
 ![RocketMQ物理部署图](picture/RocketMQ物理部署图.png)
@@ -214,6 +215,21 @@ public void scanNotActiveBroker() {
 
 #### 4. 路由发现
 
+RocketMQ路由发现是非实时的, 当Topic路由出现变化后, NameServer不主动推送给客户单,
+而是由客户端定时拉取主题最新的路由.
+- `org.apache.rocketmq.common.protocol.route.TopicRouteData`
+  RocketMQ路由结果实体
+- `org.apache.rocketmq.namesrv.processor.DefaultRequestProcessor.getRouteInfoByTopic`
+    NameServer路由发现方法
 
+
+
+### 总结
+
+![NameServer路由检测删除机制](picture/NameServer路由检测删除机制.png)
+
+- 问题1 NameServer需要等Broker失效至少120s才能将该Broker移除, 在Broker故障期间,
+  消息生产者Producer根据主题路由到该宕机的Broker, 然后投递消息,
+  那么会导致消息发送失败, RocketMQ如何保证消息发送的高可用?
 
 

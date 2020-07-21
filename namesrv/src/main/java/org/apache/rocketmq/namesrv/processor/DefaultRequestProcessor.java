@@ -335,16 +335,18 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
         return response;
     }
 
-    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
         final GetRouteInfoRequestHeader requestHeader =
             (GetRouteInfoRequestHeader) request.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
+        // 1 根据topic从路由表 topicQueueTable, brokerAddrTable, filterServerTable获取对应数据, 封装成 TopicRouteData
         TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(requestHeader.getTopic());
 
         if (topicRouteData != null) {
+            // 如果找到主题对应的broker信息不为空, 且同时该主题为顺序消息
             if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
+                // 从NameServer中的KVconfig中获取关于顺序消息相关的配置填充到路由信息
                 String orderTopicConf =
                     this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,
                         requestHeader.getTopic());
