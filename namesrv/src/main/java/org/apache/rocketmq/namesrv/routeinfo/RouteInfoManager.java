@@ -439,14 +439,19 @@ public class RouteInfoManager {
     }
 
     public void scanNotActiveBroker() {
+        // 1 该方法在NameServer中每10s执行一次, 由定时任务执行
         Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();
+        // 2 遍历brokerLiveTable中所有的broker
         while (it.hasNext()) {
             Entry<String, BrokerLiveInfo> next = it.next();
             long last = next.getValue().getLastUpdateTimestamp();
+            // 如果上次收到broker心跳包的时间超过当前时间120s(BROKER_CHANNEL_EXPIRED_TIME), 则移除该broker, 关闭channel
             if ((last + BROKER_CHANNEL_EXPIRED_TIME) < System.currentTimeMillis()) {
                 RemotingUtil.closeChannel(next.getValue().getChannel());
+                // 移除broker
                 it.remove();
                 log.warn("The broker channel expired, {} {}ms", next.getKey(), BROKER_CHANNEL_EXPIRED_TIME);
+                // 关闭channel
                 this.onChannelDestroy(next.getKey(), next.getValue().getChannel());
             }
         }

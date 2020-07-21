@@ -38,7 +38,7 @@ Broker 消息服务器在启动时向所有 Name Server 注册，消息生产者
         return null;
     }
 ```
-### NameServer路由注册,故障剔除
+##### NameServer路由注册,故障剔除
 NameServer主要作用是为消息生产者和消息消费者提供关于主题Topic的路由信息,
 所以NameServer需要存储路由的基础信息, 还要能够管理Broker节点, 包括路由注册,
 路由删除等功能.
@@ -181,3 +181,39 @@ Broker状态存储在brokerLiveTable中, NameServer每收到一个心跳包,
 将更新brokerLiveTable中关于Broker的状态信息以及路由表(topicQueueTable,
 brokerAddrTable, brokerLiveTable, filterServerTable).
 使用了读写锁对并发写的控制, 但能够保证并发读, 保证消息发送的高并发.
+
+#### 3. 路由删除
+
+RocketMQ有两个出发点来触发路由删除
+
+- 1 NameServer定时扫描brokerLiveTable检测上次心跳包与当前系统时间的时间差,
+  如果时间戳大于120s, 则需要移除该Broker信息
+> - `org.apache.rocketmq.namesrv.routeinfo.RouteInfoManager.scanNotActiveBroker`
+>   方法
+```java
+public void scanNotActiveBroker() {
+        // 1 该方法在NameServer中每10s执行一次, 由定时任务执行
+        Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();
+        // 2 遍历brokerLiveTable中所有的broker
+        while (it.hasNext()) {
+            Entry<String, BrokerLiveInfo> next = it.next();
+            long last = next.getValue().getLastUpdateTimestamp();
+            // 如果上次收到broker心跳包的时间超过当前时间120s(BROKER_CHANNEL_EXPIRED_TIME), 则移除该broker, 关闭channel
+            if ((last + BROKER_CHANNEL_EXPIRED_TIME) < System.currentTimeMillis()) {
+                RemotingUtil.closeChannel(next.getValue().getChannel());
+                // 移除broker
+                it.remove();
+                log.warn("The broker channel expired, {} {}ms", next.getKey(), BROKER_CHANNEL_EXPIRED_TIME);
+                // 关闭channel
+                this.onChannelDestroy(next.getKey(), next.getValue().getChannel());
+            }
+        }
+    }
+```
+- 2 Broker在正常被关闭的情况下, 会执行unregisterBroker指令
+
+#### 4. 路由发现
+
+
+
+
