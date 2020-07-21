@@ -83,6 +83,37 @@ NameServer主要作用是为消息生产者和消息消费者提供关于主题T
 所以NameServer需要存储路由的基础信息, 还要能够管理Broker节点, 包括路由注册,
 路由删除等功能.
 
+- `org.apache.rocketmq.namesrv.routeinfo.RouteInfoManager`
+  NameServer路由实现类
+
+NameServer主要存储信息
+```java
+    // topic消息队列路由信息, 消息发送时根据路由表进行负载均衡
+    private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
+    // Broker基础信息, 包含brokerName, 所属集群名称, 主备Broker地址
+    private final HashMap<String/* brokerName */, BrokerData> brokerAddrTable;
+    // Broker集群信息
+    private final HashMap<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
+    // Broker状态
+    private final HashMap<String/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
+    // Broker的FilterServer列表, 用于类模式消息过滤
+    private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
+```
+
+##### NameServer路由注册
+
+RocketMQ路由注册是通过Broker与NameServer的心跳功能实现的,
+Broker启动时向集群猴子那个所有的NameServer发送心跳语句,
+每个30s向集群中所有NameServer发送心跳包,
+NameServer收到Broker心跳包时会更新brokerLiveTable缓存中BrokerLiveInfo的lastUpdateTimestamp,
+然后Name Server每隔10s扫描brokerLiveTable, 如果连续120s没有收到心跳包,
+NameServer将移除该Broker的路由信息同时关闭Socket连接.
+
+
+
+
+
+
 
 
 
