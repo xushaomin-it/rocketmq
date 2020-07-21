@@ -34,6 +34,7 @@ public class Consumer {
 
         /*
          * Instantiate with specified consumer group name.
+         * 用指定的使用者组名称实例化
          */
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name_4");
 
@@ -49,6 +50,9 @@ public class Consumer {
          * </pre>
          */
 
+        // 设置name server地址
+        consumer.setNamesrvAddr ("127.0.0.1:9876");
+
         /*
          * Specify where to start in case the specified consumer group is a brand new one.
          */
@@ -57,6 +61,7 @@ public class Consumer {
         /*
          * Subscribe one more more topics to consume.
          */
+        // 订阅主题以进行消费
         consumer.subscribe("TopicTest", "*");
 
         /*
