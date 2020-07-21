@@ -54,7 +54,11 @@ public class NamesrvStartup {
     public static NamesrvController main0(String[] args) {
 
         try {
+            // NameServer启动三个步骤
+
+            // 1. 创建NamesrvController, 在创建之前, 会先读取系统配置, NamesrvController为NameServer核心控制器
             NamesrvController controller = createNamesrvController(args);
+            // 2. 启动NameServer, 在启动的同时注册jvm钩子, 启动服务器, 监听Broker, 消息生产者的网络请求
             start(controller);
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
             log.info(tip);
@@ -78,10 +82,12 @@ public class NamesrvStartup {
             System.exit(-1);
             return null;
         }
-
+        // 业务参数
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
+        // NameServer 网络参数
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         nettyServerConfig.setListenPort(9876);
+        // 从启动参数中获取 -c命令指定的配置文件的路径
         if (commandLine.hasOption('c')) {
             String file = commandLine.getOptionValue('c');
             if (file != null) {
@@ -142,7 +148,8 @@ public class NamesrvStartup {
             controller.shutdown();
             System.exit(-3);
         }
-
+        // 注册jvm钩子函数, 主要是注册一个钩子函数在jvm退出的时候做一些销毁动作
+        // 编程技巧:在代码中使用了线程池, 一种优雅停机的方式就是注册一个JVM钩子函数, 在JVM京城关闭之前, 先将线程池关闭, 及时释放资源
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {
@@ -151,6 +158,7 @@ public class NamesrvStartup {
             }
         }));
 
+        // 启动NamesrvContorller, 监听broker, 消息生产者的网络请求
         controller.start();
 
         return controller;
