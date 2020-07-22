@@ -10,6 +10,10 @@ RocketMQ支持3种消息发送形式: 同步(sync), 异步(async), 单向(oneway
 - 单向: 消息发送者向MQ执行发送消息API, 直接返回, 不等消息服务器的结果,
   也不注册回调函数, 就是只管发消息
 ---
+
+![消息发送与接收时序图](picture/消息发送与接收时序图.png)
+
+
 ### RocketMQ消息形式
 
 - `org.apache.rocketmq.common.message.Message` RocketMQ消息封装类  
