@@ -141,22 +141,22 @@ public class PullAPIWrapper {
     }
 
     public PullResult pullKernelImpl(
-        final MessageQueue mq,
-        final String subExpression,
-        final String expressionType,
+        final MessageQueue mq, // 从哪个消息消费队列拉取消息
+        final String subExpression, // 消息过滤表达式
+        final String expressionType, // 表达式类型
         final long subVersion,
-        final long offset,
-        final int maxNums,
-        final int sysFlag,
-        final long commitOffset,
-        final long brokerSuspendMaxTimeMillis,
-        final long timeoutMillis,
-        final CommunicationMode communicationMode,
-        final PullCallback pullCallback
+        final long offset, // 消息拉取偏移量
+        final int maxNums, // 本次拉取最大消息条数, 默认32条
+        final int sysFlag, // 拉取系统标记
+        final long commitOffset, // 当前MessageQueue的消费进度(内存中)
+        final long brokerSuspendMaxTimeMillis, // 消息拉取过程中允许Broker挂起时间, 默认15s
+        final long timeoutMillis, // 消息拉取超时时间
+        final CommunicationMode communicationMode,// 消息拉取模式, 默认为异步拉取
+        final PullCallback pullCallback // 从Broker拉取到消息后的回调方法
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         FindBrokerResult findBrokerResult =
             this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(),
-                this.recalculatePullFromWhichNode(mq), false);
+                this.recalculatePullFromWhichNode(mq), false); // 根据brokerName, BrokerId从MQClientInstance中获取到Broker地址, recalculatePullFromWhichNode方法从Broker集群中选择一个节点拉取
         if (null == findBrokerResult) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
             findBrokerResult =
@@ -193,10 +193,10 @@ public class PullAPIWrapper {
             requestHeader.setExpressionType(expressionType);
 
             String brokerAddr = findBrokerResult.getBrokerAddr();
-            if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {
-                brokerAddr = computPullFromWhichFilterServer(mq.getTopic(), brokerAddr);
+            if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) { // 7 如果消息过滤模式为类过滤
+                brokerAddr = computPullFromWhichFilterServer(mq.getTopic(), brokerAddr); // 获取到Broker上的FilterServer地址
             }
-
+            // 拉取消息, 异步向Broker拉取消息
             PullResult pullResult = this.mQClientFactory.getMQClientAPIImpl().pullMessage(
                 brokerAddr,
                 requestHeader,

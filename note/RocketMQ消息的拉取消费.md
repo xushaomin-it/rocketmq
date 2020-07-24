@@ -84,6 +84,107 @@ MQClientInstance只会启动一次
 消息队列负载, 一个消息队列在同一时间内置允许被一个消息消费者消费,
 一个消息消费者可以同时消费多个消息队列, RocketMQ是如何实现?
 
+RocketMQ使用一个单独的线程PullMessageService来负责消息的拉取
+
+`org.apache.rocketmq.client.impl.consumer.PullMessageService#run`
+
+```java
+public void run() {
+        log.info(this.getServiceName() + " service started");
+        // stopped声明为volatile, 每执行一次检查一下stopped的状态, 当其他线程将stopped设置为true, 则停止该方法的执行
+        while (!this.isStopped()) {
+            try {
+                // 从pullRequestQueue队列中获取一个PullRequest消息拉取任务, 如果pullRequestQueue为空, 则线程将阻塞, 直到有拉取任务被放入
+                PullRequest pullRequest = this.pullRequestQueue.take();
+                this.pullMessage(pullRequest);
+            } catch (InterruptedException ignored) {
+            } catch (Exception e) {
+                log.error("Pull Message Service Run Method exception", e);
+            }
+        }
+
+        log.info(this.getServiceName() + " service end");
+    }
+```
+
+`PullRequest`在何时添加
+
+`org.apache.rocketmq.client.impl.consumer.PullMessageService#executePullRequestImmediately`
+
+方法的调用主要在两个地方
+- RocketMQ根据PullRequest拉取任务执行完一次消息拉取任务后,
+  又将PullRequest对象放入到pullRequestQueue
+- 在RebalanceImpl中创建
+
+```java
+ public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
+        if (!isStopped()) {
+            this.scheduledExecutorService.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    PullMessageService.this.executePullRequestImmediately(pullRequest);
+                }
+            }, timeDelay, TimeUnit.MILLISECONDS);
+        } else {
+            log.warn("PullMessageServiceScheduledThread has shutdown");
+        }
+    }
+
+public void executePullRequestImmediately(final PullRequest pullRequest) {
+        try {
+            this.pullRequestQueue.put(pullRequest);
+        } catch (InterruptedException e) {
+            log.error("executePullRequestImmediately pullRequestQueue.put", e);
+        }
+    }
+```
+
+`PullRequest`
+
+主要字段
+```java
+    // 消费者组
+    private String consumerGroup;
+    // 待拉取消费队列
+    private MessageQueue messageQueue;
+    // 消息处理队列, 从Broker拉取到的消息先存入ProccessQueue, 然后再提交到消费者消费线程池消费
+    private ProcessQueue processQueue;
+    // 待拉取的MessageQueue偏移量
+    private long nextOffset;
+    // 是否被锁定
+    private boolean lockedFirst = false;
+```
+
+`ProcessQueue`实现机制
+
+
+#### 消息拉取基本流程
+
+消息拉取主要分为3个步骤:
+- 消息拉取客户端消息拉取请求封装
+- 消息服务器查找并返回消息
+- 消息拉取客户端处理返回的消息
+
+`org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl#pullMessage`消息拉取入口
+
+
+#### 消息服务端Broker组装消息
+
+`org.apache.rocketmq.broker.processor.PullMessageProcessor#processRequest`
+Broker端处理消息拉取方法
+
+#### 消息消费过程
+消息拉取的过程从PullMessageService负责对消息队列进行消息拉取,
+从远端服务器拉取消息后将消息存入ProcessQueue消息队列处理队列中,
+然后调用ConsumeMessageService#submitConsumeRuquest方法进行消息消费,
+使用线程池来消费消息, 确保了消息拉取与消息消费的解耦.  
+RocketMQ支持顺序消费与并发消费
+
+![消息消费类图](picture/消息消费类图.png)
+
+
+
+
 
 
 
